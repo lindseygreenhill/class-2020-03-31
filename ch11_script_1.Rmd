@@ -64,9 +64,11 @@ Crow
 
 **Prompt:** What is the correlation coefficient of `poverty` and `less_than_hs`? What does it mean? What does it suggest about the relation between the percent of the population in poverty in 2018 and the percent of the population with less than a high school degree in 2014? 
 ```{r prompt3, echo=FALSE}
-county %>% summarize(correlation = cor(poverty, less_than_hs))
+correlation <- county %>% summarize(correlation = cor(poverty, less_than_hs))
 
 ```
+the correlation coefficient is `r correlation`. The correlation is positive, so
+it suggests that as less_than_hs increases, poverty increases.
 
 
 
@@ -89,9 +91,9 @@ Here is an example: https://rpubs.com/ruchajoshi/regional_poverty
 
 ```{r prompt5, echo=FALSE}
 scene5 <- ggplot(county, aes(x = less_than_hs, y = poverty, color = region)) +
-  geom_point()
+  geom_point() +
+  transition_manual(region)
 scene5
-
 ```
 
 
@@ -100,34 +102,97 @@ scene5
 
 **Prompt:** Assume that we are trying to understand the causes of poverty in US counties. Chapter 11 discusses two types of approaches: modeling for explanation and modeling for prediction. (Recall the definitions of these terms.) Which kind is this? Write down some bullet points which make the case for one or the other. 
 
+modeling for explanation: this would be explanation because we are trying to
+describe and maybe identify a causal relationship between x and y
+modeling for prediction:
+
 
 # Scene 7
 
 **Prompt:** Assume we want to create an explanatory model. Create a new variable, `good_education`, which is 1 if `less_than_hs` is less than 13 and 0 if it is not. In other words, we are defining counties with fewer residents who have less than a high school education as having a `good_education`. Counties with more do not have a `good_education`. (13% is about the average across the US.)  
 
-First, what is the average poverty in the `good_education` = 1 counties versus `good_education` = 0 counties?
+```{r scene7a, echo=FALSE}
+education <- county %>%
+  mutate(good_education = ifelse(less_than_hs < 13, 1, 0))
+education
 
-Second, does this suggest that `good_education` is associated with less poverty? If a new county had `good_education` what would you guess its povery rate is?
+```
+
+
+First, what is the average poverty in the `good_education` = 1 counties versus `good_education` = 0 counties?
+```{r 7b, echo=FALSE}
+avg_good <- education %>% filter(good_education == 1) %>%
+  summarize(avg_poverty = mean(poverty))
+avg_bad <- education %>% filter(good_education == 0) %>%
+  summarize(avg_poverty = mean(poverty))
+avg_good
+avg_bad
+
+```
+
+
+Second, does this suggest that `good_education` is associated with less poverty? If a new county had `good_education` what would you guess its poverty rate is?
+
+Yes, it does. About 11.9, because that is the average. 
 
 Third, does this suggest that `good_education` causes less poverty? If you change education in a county, will poverty change?
 
+Correlation is not causation, but there could be causation. 
+
 Fourth, recall the Rubin Causal Model and potential outcomes. Write down the units, the treatments, and the outcomes. Define the causal effect of `good_education` on poverty rate. What is the fundamental problem of causal inference?
+units: counties
+treatments: good education or not
+outcomes: levels of poverty
+causal effect: the causal effect is that good education levels decrease poverty
+fundamental problem: you can't observe on a single unit level two different outcomes
 
 Fifth, how do the above answers change if, instead of using `good_education`, we use `less_than_hs` instead?
+
+we would essentially just replace good education with less_than_hs, so we would be tracking by percentage and the treatment would be on a continuous scale. 
 
 
 # Scene 8
 
 **Prompt** Using the `lm()` function, fit a model with this data in which `poverty` is the dependent variable and `less_than_hs` is the independent variable. Save the resulting object as `poverty_model`. Then, use the tidy() function found in section 11.1.2 to obtain the regression parameters. You should have a 2x7 regression table with terms of (Intercept) and `less_than_hs`, as well as an estimate, std.error, statistic, p.value, conf.low, and conf.high. Write one sentence explaining what the intercept means and one sentence about what the slope means.
 
+The intercept means that if 
+
+```{r prompt8, echo=FALSE}
+
+poverty_model <- lm(poverty ~ less_than_hs, county) %>%
+  tidy(conf.int = T)
+poverty_model
+
+# if 0% had less than hs, than this is the expected poverty model
+# for each percentage increase in less_than_hs, on average you would expect that
+# poverty increased by .636
+
+```
+
+
 
 # Scene 9
 
 **Prompt** Use nest() to create a 1,000 bootstrap samples of the the data, just as we did when estimating confidence intervals. In each row of this tibble, we'll have a resampled collection of counties in which we’ll sometimes have multiple counties represented and sometimes there will be counties that don't even appear.
 
+```{r prompt9, echo=FALSE}
+boot <- rep_sample_n(size = 3129, reps = 10, tbl = county) %>%
+  group_by(replicate) %>%
+  nest()
+boot
+
+```
+
+
 # Scene 10 
 
 **Prompt**  Now, using the starter code above, go ahead and add more columns. Make one called `mod` which will contains the model objects created by `lm()`. Then, add one called `reg_results` which will tidy the objects created by `lm()`, and then one called `disp_coef` which will display the regression coefficient for each bootstrap sample. 
+
+```{r prompt10, echo=FALSE}
+
+boot10 <- boot %>% mutate(mod = map(data, ~ lm(poverty ~ less_than_hs, data = .)))
+```
+
 
 
 # Scene 11 
